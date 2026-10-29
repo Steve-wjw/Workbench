@@ -1,0 +1,39 @@
+# OS and editor files
+.DS_Store
+.idea/
+.vscode/
+*.iml
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Java
+backend-java/target/
+
+# Python
+backend-python/.venv/
+backend-python/__pycache__/
+backend-python/**/__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local runtime data
+data/models/
+data/logs/
+data/backups/
+data/.pids/
+data/imports/*
+data/documents/original/*
+data/documents/imported/*
+
+# Keep runtime directory placeholders
+!data/documents/original/.gitkeep
+!data/documents/imported/.gitkeep
