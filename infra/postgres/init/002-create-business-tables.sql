@@ -5,7 +5,6 @@
 CREATE TABLE IF NOT EXISTS core.modules (
     id UUID PRIMARY KEY,
     name VARCHAR(120) NOT NULL,
-    slug VARCHAR(120) NOT NULL UNIQUE,
     description TEXT,
     icon VARCHAR(80),
     sort_order INTEGER NOT NULL DEFAULT 0,
@@ -21,7 +20,6 @@ CREATE INDEX IF NOT EXISTS modules_status_sort_idx
 CREATE TABLE IF NOT EXISTS core.tags (
     id UUID PRIMARY KEY,
     name VARCHAR(120) NOT NULL,
-    slug VARCHAR(120) NOT NULL UNIQUE,
     parent_id UUID REFERENCES core.tags (id) ON DELETE SET NULL,
     color VARCHAR(32),
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -67,23 +65,18 @@ CREATE INDEX IF NOT EXISTS documents_content_hash_idx
     ON core.documents (content_hash);
 
 CREATE TABLE IF NOT EXISTS core.interview_questions (
-    id UUID PRIMARY KEY,
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     module_id UUID REFERENCES core.modules (id) ON DELETE SET NULL,
-    title VARCHAR(240) NOT NULL,
     question TEXT NOT NULL,
-    short_answer TEXT,
+    answer TEXT NOT NULL,
     detailed_answer TEXT,
-    key_points JSONB NOT NULL DEFAULT '[]'::jsonb,
+    follow_up_questions TEXT,
     difficulty VARCHAR(32) NOT NULL DEFAULT 'MEDIUM',
     mastery_status VARCHAR(32) NOT NULL DEFAULT 'NOT_STARTED',
-    source_type VARCHAR(32) NOT NULL DEFAULT 'MANUAL',
-    status VARCHAR(32) NOT NULL DEFAULT 'ACTIVE',
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT questions_difficulty_check CHECK (difficulty IN ('EASY', 'MEDIUM', 'HARD')),
-    CONSTRAINT questions_mastery_check CHECK (mastery_status IN ('NOT_STARTED', 'LEARNING', 'MASTERED')),
-    CONSTRAINT questions_source_type_check CHECK (source_type IN ('MANUAL', 'DOCUMENT', 'AI_GENERATED')),
-    CONSTRAINT questions_status_check CHECK (status IN ('ACTIVE', 'ARCHIVED'))
+    CONSTRAINT questions_mastery_check CHECK (mastery_status IN ('NOT_STARTED', 'LEARNING', 'MASTERED'))
 );
 
 CREATE INDEX IF NOT EXISTS questions_module_idx ON core.interview_questions (module_id);
@@ -99,7 +92,7 @@ CREATE TABLE IF NOT EXISTS core.document_tags (
 CREATE INDEX IF NOT EXISTS document_tags_tag_idx ON core.document_tags (tag_id);
 
 CREATE TABLE IF NOT EXISTS core.interview_question_tags (
-    question_id UUID NOT NULL REFERENCES core.interview_questions (id) ON DELETE CASCADE,
+    question_id BIGINT NOT NULL REFERENCES core.interview_questions (id) ON DELETE CASCADE,
     tag_id UUID NOT NULL REFERENCES core.tags (id) ON DELETE CASCADE,
     PRIMARY KEY (question_id, tag_id)
 );

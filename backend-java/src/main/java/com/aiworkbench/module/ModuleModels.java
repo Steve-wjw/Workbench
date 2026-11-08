@@ -20,7 +20,6 @@ public final class ModuleModels {
      *
      * @param id 模块 ID
      * @param name 模块名称
-     * @param slug 模块稳定标识
      * @param description 模块描述
      * @param icon 模块图标标识
      * @param sortOrder 展示排序
@@ -33,8 +32,6 @@ public final class ModuleModels {
             UUID id,
             /** 模块名称。 */
             String name,
-            /** 模块稳定标识。 */
-            String slug,
             /** 模块描述。 */
             String description,
             /** 模块图标标识。 */
@@ -53,7 +50,6 @@ public final class ModuleModels {
      * 创建模块请求。
      *
      * @param name 模块名称
-     * @param slug 模块稳定标识
      * @param description 模块描述
      * @param icon 模块图标标识
      * @param sortOrder 展示排序
@@ -62,8 +58,6 @@ public final class ModuleModels {
     public record CreateModuleRequest(
             /** 模块名称。 */
             @NotBlank @Size(max = 120) String name,
-            /** 模块稳定标识。 */
-            @NotBlank @Size(max = 120) String slug,
             /** 模块描述。 */
             @Size(max = 2000) String description,
             /** 模块图标标识。 */
@@ -78,7 +72,6 @@ public final class ModuleModels {
      * 更新模块请求。所有字段均为可选，只更新调用方提供的字段。
      *
      * @param name 模块名称
-     * @param slug 模块稳定标识
      * @param description 模块描述
      * @param icon 模块图标标识
      * @param sortOrder 展示排序
@@ -87,8 +80,6 @@ public final class ModuleModels {
     public record UpdateModuleRequest(
             /** 模块名称。 */
             @Size(max = 120) String name,
-            /** 模块稳定标识。 */
-            @Size(max = 120) String slug,
             /** 模块描述。 */
             @Size(max = 2000) String description,
             /** 模块图标标识。 */

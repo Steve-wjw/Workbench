@@ -42,7 +42,7 @@ public class TagRepository {
     /**
      * 按关键词分页查询标签。
      *
-     * @param keyword 标签名称或 slug 关键词
+     * @param keyword 标签名称关键词
      * @param pageRequest 分页参数
      * @return 分页标签列表
      */
@@ -54,18 +54,18 @@ public class TagRepository {
                 .addValue("limit", pageRequest.size())
                 .addValue("offset", pageRequest.offset());
         List<TagModels.TagResponse> items = jdbc.query("""
-                SELECT t.id, t.name, t.slug, t.parent_id, t.color,
+                SELECT t.id, t.name, t.parent_id, t.color,
                        t.created_at, t.updated_at,
                        (SELECT COUNT(*) FROM core.document_tags dt WHERE dt.tag_id = t.id)
                          + (SELECT COUNT(*) FROM core.interview_question_tags qt WHERE qt.tag_id = t.id) AS usage_count
                 FROM core.tags t
-                WHERE (:keyword = '' OR t.name ILIKE :likeKeyword OR t.slug ILIKE :likeKeyword)
+                WHERE (:keyword = '' OR t.name ILIKE :likeKeyword)
                 ORDER BY t.name
                 LIMIT :limit OFFSET :offset
                 """, params, ROW_MAPPER);
         Long total = jdbc.queryForObject("""
                 SELECT COUNT(*) FROM core.tags
-                WHERE (:keyword = '' OR name ILIKE :likeKeyword OR slug ILIKE :likeKeyword)
+                WHERE (:keyword = '' OR name ILIKE :likeKeyword)
                 """, params, Long.class);
         return new PageResponse<>(items, pageRequest.page(), pageRequest.size(), total == null ? 0 : total);
     }
@@ -78,7 +78,7 @@ public class TagRepository {
      */
     public TagModels.TagResponse findById(UUID id) {
         List<TagModels.TagResponse> results = jdbc.query("""
-                SELECT t.id, t.name, t.slug, t.parent_id, t.color,
+                SELECT t.id, t.name, t.parent_id, t.color,
                        t.created_at, t.updated_at,
                        (SELECT COUNT(*) FROM core.document_tags dt WHERE dt.tag_id = t.id)
                          + (SELECT COUNT(*) FROM core.interview_question_tags qt WHERE qt.tag_id = t.id) AS usage_count
@@ -98,7 +98,7 @@ public class TagRepository {
             return List.of();
         }
         return jdbc.query("""
-                SELECT t.id, t.name, t.slug, t.parent_id, t.color,
+                SELECT t.id, t.name, t.parent_id, t.color,
                        t.created_at, t.updated_at,
                        (SELECT COUNT(*) FROM core.document_tags dt WHERE dt.tag_id = t.id)
                          + (SELECT COUNT(*) FROM core.interview_question_tags qt WHERE qt.tag_id = t.id) AS usage_count
@@ -115,12 +115,11 @@ public class TagRepository {
     public TagModels.TagResponse insert(TagModels.CreateTagRequest request) {
         UUID id = UUID.randomUUID();
         jdbc.update("""
-                INSERT INTO core.tags (id, name, slug, parent_id, color)
-                VALUES (:id, :name, :slug, :parentId, :color)
+                INSERT INTO core.tags (id, name, parent_id, color)
+                VALUES (:id, :name, :parentId, :color)
                 """, new MapSqlParameterSource()
                 .addValue("id", id)
                 .addValue("name", request.name().trim())
-                .addValue("slug", request.slug().trim())
                 .addValue("parentId", request.parentId())
                 .addValue("color", blankToNull(request.color())));
         return findById(id);
@@ -137,7 +136,6 @@ public class TagRepository {
         jdbc.update("""
                 UPDATE core.tags
                 SET name = COALESCE(:name, name),
-                    slug = COALESCE(:slug, slug),
                     parent_id = COALESCE(:parentId, parent_id),
                     color = COALESCE(:color, color),
                     updated_at = CURRENT_TIMESTAMP
@@ -145,7 +143,6 @@ public class TagRepository {
                 """, new MapSqlParameterSource()
                 .addValue("id", id)
                 .addValue("name", blankToNull(request.name()))
-                .addValue("slug", blankToNull(request.slug()))
                 .addValue("parentId", request.parentId())
                 .addValue("color", blankToNull(request.color())));
         return findById(id);
@@ -186,7 +183,6 @@ public class TagRepository {
         return new TagModels.TagResponse(
                 resultSet.getObject("id", UUID.class),
                 resultSet.getString("name"),
-                resultSet.getString("slug"),
                 resultSet.getObject("parent_id", UUID.class),
                 resultSet.getString("color"),
                 resultSet.getLong("usage_count"),

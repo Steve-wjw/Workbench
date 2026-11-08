@@ -20,7 +20,6 @@ public final class TagModels {
      *
      * @param id 标签 ID
      * @param name 标签名称
-     * @param slug 标签稳定标识
      * @param parentId 父标签 ID
      * @param color 标签颜色
      * @param usageCount 标签被资料和面试题使用的次数
@@ -32,8 +31,6 @@ public final class TagModels {
             UUID id,
             /** 标签名称。 */
             String name,
-            /** 标签稳定标识。 */
-            String slug,
             /** 父标签 ID。 */
             UUID parentId,
             /** 标签颜色。 */
@@ -50,15 +47,12 @@ public final class TagModels {
      * 创建标签请求。
      *
      * @param name 标签名称
-     * @param slug 标签稳定标识
      * @param parentId 父标签 ID
      * @param color 标签颜色
      */
     public record CreateTagRequest(
             /** 标签名称。 */
             @NotBlank @Size(max = 120) String name,
-            /** 标签稳定标识。 */
-            @NotBlank @Size(max = 120) String slug,
             /** 父标签 ID。 */
             UUID parentId,
             /** 标签颜色。 */
@@ -69,18 +63,21 @@ public final class TagModels {
      * 更新标签请求。
      *
      * @param name 标签名称
-     * @param slug 标签稳定标识
      * @param parentId 父标签 ID
      * @param color 标签颜色
      */
     public record UpdateTagRequest(
             /** 标签名称。 */
             @Size(max = 120) String name,
-            /** 标签稳定标识。 */
-            @Size(max = 120) String slug,
             /** 父标签 ID。 */
             UUID parentId,
             /** 标签颜色。 */
             @Size(max = 32) String color) {
+    }
+
+    /** 根据内容推荐已有标签的请求。 */
+    public record RecommendTagsRequest(
+            /** 待分析的标题、问题或正文。 */
+            @Size(max = 50000) String content) {
     }
 }

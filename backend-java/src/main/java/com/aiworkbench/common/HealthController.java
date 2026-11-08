@@ -9,6 +9,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.CacheControl;
 import org.springframework.http.ResponseEntity;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.web.client.RestClient;
@@ -46,6 +47,14 @@ public class HealthController {
             @Value("${workbench.python-rag-base-url}") String pythonRagBaseUrl) {
         this.jdbcTemplate = jdbcTemplate;
         this.pythonRagClient = restClientBuilder.baseUrl(pythonRagBaseUrl).build();
+    }
+
+    /** Only probes Java API connectivity, without calling the database or Python service. */
+    @GetMapping("/health/live")
+    @Operation(summary = "查询 Java API 连接状态")
+    public ResponseEntity<Map<String, Object>> live() {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(Map.of(
+                "service", "java-api", "status", "UP", "timestamp", Instant.now().toString()));
     }
 
     /**

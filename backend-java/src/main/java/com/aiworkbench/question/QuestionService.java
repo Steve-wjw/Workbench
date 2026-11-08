@@ -16,7 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 /**
  * 面试题业务服务。
  *
- * <p>负责面试题筛选、引用校验、关键点清洗和事务边界。
+ * <p>负责面试题筛选、引用校验和事务边界。
  */
 @Service
 public class QuestionService {
@@ -81,7 +81,7 @@ public class QuestionService {
      * @param id 面试题 ID
      * @return 面试题详情
      */
-    public QuestionModels.QuestionResponse get(UUID id) {
+    public QuestionModels.QuestionResponse get(Long id) {
         QuestionModels.QuestionResponse question = repository.findById(id);
         if (question == null) {
             throw notFound(id);
@@ -90,7 +90,7 @@ public class QuestionService {
     }
 
     /**
-     * 创建面试题并清洗关键点。
+     * 创建面试题。
      *
      * @param request 创建请求
      * @return 创建后的面试题
@@ -98,7 +98,7 @@ public class QuestionService {
     @Transactional
     public QuestionModels.QuestionResponse create(QuestionModels.CreateQuestionRequest request) {
         validateReferences(request.moduleId(), request.tagIds());
-        return repository.insert(request, cleanKeyPoints(request.keyPoints()));
+        return repository.insert(request);
     }
 
     /**
@@ -109,11 +109,10 @@ public class QuestionService {
      * @return 更新后的面试题
      */
     @Transactional
-    public QuestionModels.QuestionResponse update(UUID id, QuestionModels.UpdateQuestionRequest request) {
+    public QuestionModels.QuestionResponse update(Long id, QuestionModels.UpdateQuestionRequest request) {
         get(id);
         validateReferences(request.moduleId(), request.tagIds());
-        String keyPointsJson = request.keyPoints() == null ? null : toJson(request.keyPoints());
-        return repository.update(id, request, keyPointsJson);
+        return repository.update(id, request);
     }
 
     /**
@@ -122,7 +121,7 @@ public class QuestionService {
      * @param id 面试题 ID
      */
     @Transactional
-    public void delete(UUID id) {
+    public void delete(Long id) {
         if (!repository.delete(id)) {
             throw notFound(id);
         }
@@ -144,41 +143,12 @@ public class QuestionService {
     }
 
     /**
-     * 清洗关键点：删除空值并去除首尾空白。
-     *
-     * @param keyPoints 原始关键点
-     * @return 清洗后的关键点
-     */
-    private List<String> cleanKeyPoints(List<String> keyPoints) {
-        return keyPoints == null
-                ? List.of()
-                : keyPoints.stream()
-                        .filter(point -> point != null && !point.isBlank())
-                        .map(String::trim)
-                        .toList();
-    }
-
-    /**
-     * 将关键点列表序列化为 JSON。
-     *
-     * @param keyPoints 关键点
-     * @return JSON 字符串
-     */
-    private String toJson(List<String> keyPoints) {
-        try {
-            return new com.fasterxml.jackson.databind.ObjectMapper().writeValueAsString(cleanKeyPoints(keyPoints));
-        } catch (com.fasterxml.jackson.core.JsonProcessingException exception) {
-            throw new IllegalArgumentException("keyPoints must be serializable", exception);
-        }
-    }
-
-    /**
      * 创建面试题不存在异常。
      *
      * @param id 面试题 ID
      * @return 业务异常
      */
-    private ApiException notFound(UUID id) {
+    private ApiException notFound(Long id) {
         return new ApiException(HttpStatus.NOT_FOUND, "QUESTION_NOT_FOUND", "面试题不存在: " + id);
     }
 }

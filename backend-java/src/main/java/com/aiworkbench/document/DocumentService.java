@@ -16,6 +16,7 @@ import com.aiworkbench.module.ModuleRepository;
 import com.aiworkbench.tag.TagRepository;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +42,9 @@ public class DocumentService {
     /** 本地数据目录，用于保存上传的原始 Markdown 文件。 */
     private final Path dataDir;
 
+    /** 面经生成服务。 */
+    private final InterviewGenerationService interviewGenerationService;
+
     /**
      * 创建资料服务。
      *
@@ -48,15 +52,31 @@ public class DocumentService {
      * @param moduleRepository 模块数据访问对象
      * @param tagRepository 标签数据访问对象
      */
+    @Autowired
     public DocumentService(
             DocumentRepository repository,
             ModuleRepository moduleRepository,
             TagRepository tagRepository,
-            @Value("${workbench.data-dir}") String dataDir) {
+            @Value("${workbench.data-dir}") String dataDir,
+            InterviewGenerationService interviewGenerationService) {
         this.repository = repository;
         this.moduleRepository = moduleRepository;
         this.tagRepository = tagRepository;
         this.dataDir = Path.of(dataDir).toAbsolutePath().normalize();
+        this.interviewGenerationService = interviewGenerationService;
+    }
+
+    /** 保留无模型测试构造方式。 */
+    public DocumentService(
+            DocumentRepository repository,
+            ModuleRepository moduleRepository,
+            TagRepository tagRepository,
+            String dataDir) {
+        this.repository = repository;
+        this.moduleRepository = moduleRepository;
+        this.tagRepository = tagRepository;
+        this.dataDir = Path.of(dataDir).toAbsolutePath().normalize();
+        this.interviewGenerationService = null;
     }
 
     /**
@@ -92,6 +112,15 @@ public class DocumentService {
             throw notFound(id);
         }
         return document;
+    }
+
+    /** 根据资料生成不落库的面经草稿。 */
+    public InterviewGenerationModels.GeneratedQuestionsResponse generateInterviewQuestions(UUID id) {
+        DocumentModels.DocumentResponse document = get(id);
+        if (interviewGenerationService == null) {
+            throw new ApiException(HttpStatus.BAD_GATEWAY, "INTERVIEW_GENERATION_UNAVAILABLE", "当前环境未启用面经生成服务。");
+        }
+        return interviewGenerationService.generate(document.title(), document.content());
     }
 
     /**

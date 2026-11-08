@@ -156,6 +156,13 @@ public class DocumentController {
         return service.listJobs(id);
     }
 
+    /** 根据资料生成不落库的面经草稿。 */
+    @PostMapping("/{id}/generate-interview-questions")
+    @Operation(summary = "根据资料生成面经")
+    public InterviewGenerationModels.GeneratedQuestionsResponse generateInterviewQuestions(@PathVariable UUID id) {
+        return service.generateInterviewQuestions(id);
+    }
+
     /**
      * 手动触发资料重新索引。
      *

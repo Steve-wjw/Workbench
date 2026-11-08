@@ -42,7 +42,7 @@ public class ModuleRepository {
     /**
      * 按关键词分页查询模块。
      *
-     * @param keyword 模块名称或 slug 关键词
+     * @param keyword 模块名称关键词
      * @param pageRequest 分页参数
      * @return 分页模块列表
      */
@@ -54,16 +54,16 @@ public class ModuleRepository {
                 .addValue("limit", pageRequest.size())
                 .addValue("offset", pageRequest.offset());
         List<ModuleModels.ModuleResponse> items = jdbc.query("""
-                SELECT id, name, slug, description, icon, sort_order, status, created_at, updated_at
+                SELECT id, name, description, icon, sort_order, status, created_at, updated_at
                 FROM core.modules
-                WHERE (:keyword = '' OR name ILIKE :likeKeyword OR slug ILIKE :likeKeyword)
+                WHERE (:keyword = '' OR name ILIKE :likeKeyword)
                 ORDER BY sort_order, name
                 LIMIT :limit OFFSET :offset
                 """, params, ROW_MAPPER);
         Long total = jdbc.queryForObject("""
                 SELECT COUNT(*)
                 FROM core.modules
-                WHERE (:keyword = '' OR name ILIKE :likeKeyword OR slug ILIKE :likeKeyword)
+                WHERE (:keyword = '' OR name ILIKE :likeKeyword)
                 """, params, Long.class);
         return new PageResponse<>(items, pageRequest.page(), pageRequest.size(), total == null ? 0 : total);
     }
@@ -76,7 +76,7 @@ public class ModuleRepository {
      */
     public ModuleModels.ModuleResponse findById(UUID id) {
         List<ModuleModels.ModuleResponse> results = jdbc.query("""
-                SELECT id, name, slug, description, icon, sort_order, status, created_at, updated_at
+                SELECT id, name, description, icon, sort_order, status, created_at, updated_at
                 FROM core.modules WHERE id = :id
                 """, Map.of("id", id), ROW_MAPPER);
         return results.isEmpty() ? null : results.getFirst();
@@ -92,13 +92,12 @@ public class ModuleRepository {
         UUID id = UUID.randomUUID();
         jdbc.update("""
                 INSERT INTO core.modules
-                    (id, name, slug, description, icon, sort_order, status)
+                    (id, name, description, icon, sort_order, status)
                 VALUES
-                    (:id, :name, :slug, :description, :icon, :sortOrder, :status)
+                    (:id, :name, :description, :icon, :sortOrder, :status)
                 """, new MapSqlParameterSource()
                 .addValue("id", id)
                 .addValue("name", request.name().trim())
-                .addValue("slug", request.slug().trim())
                 .addValue("description", blankToNull(request.description()))
                 .addValue("icon", blankToNull(request.icon()))
                 .addValue("sortOrder", request.sortOrder() == null ? 0 : request.sortOrder())
@@ -117,7 +116,6 @@ public class ModuleRepository {
         jdbc.update("""
                 UPDATE core.modules
                 SET name = COALESCE(:name, name),
-                    slug = COALESCE(:slug, slug),
                     description = COALESCE(:description, description),
                     icon = COALESCE(:icon, icon),
                     sort_order = COALESCE(:sortOrder, sort_order),
@@ -127,7 +125,6 @@ public class ModuleRepository {
                 """, new MapSqlParameterSource()
                 .addValue("id", id)
                 .addValue("name", blankToNull(request.name()))
-                .addValue("slug", blankToNull(request.slug()))
                 .addValue("description", blankToNull(request.description()))
                 .addValue("icon", blankToNull(request.icon()))
                 .addValue("sortOrder", request.sortOrder())
@@ -157,7 +154,6 @@ public class ModuleRepository {
         return new ModuleModels.ModuleResponse(
                 resultSet.getObject("id", UUID.class),
                 resultSet.getString("name"),
-                resultSet.getString("slug"),
                 resultSet.getString("description"),
                 resultSet.getString("icon"),
                 resultSet.getInt("sort_order"),

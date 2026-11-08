@@ -86,7 +86,7 @@ public class QuestionController {
      */
     @GetMapping("/{id}")
     @Operation(summary = "查询面试题详情")
-    public QuestionModels.QuestionResponse get(@PathVariable UUID id) {
+    public QuestionModels.QuestionResponse get(@PathVariable Long id) {
         return service.get(id);
     }
 
@@ -100,7 +100,7 @@ public class QuestionController {
     @PatchMapping("/{id}")
     @Operation(summary = "更新面试题")
     public QuestionModels.QuestionResponse update(
-            @PathVariable UUID id,
+            @PathVariable Long id,
             @Valid @RequestBody QuestionModels.UpdateQuestionRequest request) {
         return service.update(id, request);
     }
@@ -113,7 +113,7 @@ public class QuestionController {
     @DeleteMapping("/{id}")
     @Operation(summary = "删除面试题")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void delete(@PathVariable UUID id) {
+    public void delete(@PathVariable Long id) {
         service.delete(id);
     }
 }

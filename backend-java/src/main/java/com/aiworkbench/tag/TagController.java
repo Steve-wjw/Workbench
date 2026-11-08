@@ -66,6 +66,13 @@ public class TagController {
         return service.create(request);
     }
 
+    /** 推荐内容中已有的相关标签。 */
+    @PostMapping("/recommend")
+    public java.util.List<TagModels.TagResponse> recommend(
+            @Valid @RequestBody TagModels.RecommendTagsRequest request) {
+        return service.recommend(request.content());
+    }
+
     /**
      * 查询单个标签。
      *

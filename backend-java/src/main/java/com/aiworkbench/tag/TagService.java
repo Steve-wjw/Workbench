@@ -1,6 +1,8 @@
 package com.aiworkbench.tag;
 
 import java.util.UUID;
+import java.util.Comparator;
+import java.util.Locale;
 
 import com.aiworkbench.common.ApiException;
 import com.aiworkbench.common.PageRequest;
@@ -40,6 +42,27 @@ public class TagService {
      */
     public PageResponse<TagModels.TagResponse> list(String keyword, Integer page, Integer size) {
         return repository.findPage(keyword, PageRequest.of(page, size));
+    }
+
+    /**
+     * 根据内容中出现的已有标签名称推荐最多三个标签。
+     *
+     * <p>推荐只使用本地已有标签和使用次数，不调用外部模型，也不会创建标签。
+     */
+    public java.util.List<TagModels.TagResponse> recommend(String content) {
+        String normalized = content == null ? "" : content.toLowerCase(Locale.ROOT);
+        if (normalized.isBlank()) {
+            return java.util.List.of();
+        }
+        return repository.findPage(null, PageRequest.of(0, 1000)).items().stream()
+                .map(tag -> new ScoredTag(tag, occurrences(normalized, tag.name().toLowerCase(Locale.ROOT))))
+                .filter(item -> item.score() > 0)
+                .sorted(Comparator.comparingInt(ScoredTag::score).reversed()
+                        .thenComparing(ScoredTag::usageCount, Comparator.reverseOrder())
+                        .thenComparing(item -> item.tag().name()))
+                .limit(3)
+                .map(ScoredTag::tag)
+                .toList();
     }
 
     /**
@@ -111,5 +134,24 @@ public class TagService {
      */
     private ApiException notFound(UUID id) {
         return new ApiException(HttpStatus.NOT_FOUND, "TAG_NOT_FOUND", "标签不存在: " + id);
+    }
+
+    private int occurrences(String content, String term) {
+        if (term.isBlank()) {
+            return 0;
+        }
+        int count = 0;
+        int offset = 0;
+        while ((offset = content.indexOf(term, offset)) >= 0) {
+            count++;
+            offset += term.length();
+        }
+        return count;
+    }
+
+    private record ScoredTag(TagModels.TagResponse tag, int score) {
+        int usageCount() {
+            return (int) tag.usageCount();
+        }
     }
 }
