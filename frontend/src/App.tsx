@@ -17,6 +17,7 @@ import {
   ExternalLink,
   FilePlus2,
   FileText,
+  Github,
   LayoutDashboard,
   Newspaper,
   Pencil,
@@ -34,8 +35,8 @@ import BackendStatus from "./BackendStatus";
 import MarkdownPreview, { renderInlineMarkdown } from "./MarkdownPreview";
 import { extractFollowUpTitles, followUpText, parseFollowUps, serializeFollowUps, type FollowUpQuestion } from "./questionFollowUps";
 import { readNavigationState, saveNavigationState, type View } from "./navigationState";
-
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8080/api/v1";
+import { api } from "./api";
+import GithubProjects, { type GithubCategory } from "./GithubProjects";
 
 /** Java API 的统一分页响应。 */
 type Page<T> = { items: T[]; page: number; size: number; total: number };
@@ -53,7 +54,7 @@ type TagItem = {
 /** 面试题自增 BIGINT 主键在 API 中使用十进制字符串，避免浏览器精度丢失。 */
 type Question = {
   id: string; moduleId?: string; moduleName?: string; question: string; answer: string;
-  detailedAnswer?: string; followUpQuestions?: string; difficulty: string; masteryStatus: string; tags: TagItem[]; updatedAt: string;
+  detailedAnswer?: string; followUpQuestions?: string; difficulty: string; masteryStatus: string; sourceType: "MANUAL" | "DOCUMENT"; tags: TagItem[]; updatedAt: string;
 };
 
 /** 根据资料生成的待确认面经草稿。 */
@@ -101,33 +102,10 @@ const navItems: { id: View; label: string; section: "内容" | "管理"; icon: t
   { id: "news", label: "AI 热点", section: "内容", icon: Newspaper },
   { id: "questions", label: "AI 面经", section: "内容", icon: FileText },
   { id: "documents", label: "资料库", section: "内容", icon: BookOpen },
+  { id: "github", label: "GitHub", section: "内容", icon: Github },
   { id: "tags", label: "标签管理", section: "管理", icon: Tag },
   { id: "modules", label: "模块管理", section: "管理", icon: Database },
 ];
-
-/**
- * 调用 Java API 并统一处理 HTTP 错误。
- *
- * @param path API 相对路径
- * @param options fetch 请求选项
- * @returns API 响应数据
- */
-async function api<T>(path: string, options?: RequestInit): Promise<T> {
-  const body = options?.body;
-  const headers = body instanceof FormData
-    ? options?.headers
-    : { "Content-Type": "application/json", ...(options?.headers ?? {}) };
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    headers,
-    ...options,
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: "请求失败" }));
-    throw new Error(error.message ?? "请求失败");
-  }
-  if (response.status === 204) return undefined as T;
-  return response.json() as Promise<T>;
-}
 
 /** 将 ISO 时间格式化为适合列表展示的短日期。 */
 function formatDate(value?: string) {
@@ -167,6 +145,9 @@ function App() {
   const [selectedQuestionId, setSelectedQuestionId] = useState<string | null>(initialNavigation.selectedQuestionId);
   const [documentModal, setDocumentModal] = useState<DocumentItem | "new" | null>(null);
   const [documentImportOpen, setDocumentImportOpen] = useState(false);
+  const [githubCategory, setGithubCategory] = useState<GithubCategory>(initialNavigation.githubCategory);
+  const [selectedGithubId, setSelectedGithubId] = useState<string | null>(initialNavigation.selectedGithubId);
+  const [githubRefresh, setGithubRefresh] = useState(0);
   const [tagModal, setTagModal] = useState<TagItem | "new" | null>(null);
   const [selectedDocumentId, setSelectedDocumentId] = useState<string | null>(initialNavigation.selectedDocumentId);
   const selectedQuestion = questions.find((question) => question.id === selectedQuestionId) ?? null;
@@ -174,8 +155,8 @@ function App() {
   const selectedNews = [...(news?.today.items ?? []), ...(news?.yesterday.items ?? [])].find((item) => item.id === selectedNewsId) ?? null;
 
   useEffect(() => {
-    saveNavigationState({ view, selectedQuestionId, selectedDocumentId, selectedNewsId });
-  }, [view, selectedQuestionId, selectedDocumentId, selectedNewsId]);
+    saveNavigationState({ view, selectedQuestionId, selectedDocumentId, selectedNewsId, githubCategory, selectedGithubId });
+  }, [view, selectedQuestionId, selectedDocumentId, selectedNewsId, githubCategory, selectedGithubId]);
 
   /** 加载模块和标签等表单所需的基础数据。 */
   const loadReferenceData = async () => {
@@ -320,6 +301,7 @@ function App() {
                   setSelectedQuestionId(null);
                   setSelectedDocumentId(null);
                   setSelectedNewsId(null);
+                  setSelectedGithubId(null);
                   if (id === "news" && view === "news") void loadNews();
                 }}>
                   <Icon size={16} strokeWidth={1.8} /><span>{label}</span>
@@ -340,7 +322,7 @@ function App() {
             <div className="title-row"><h1>{pageTitle}</h1></div>
           </div>
           <div className="topbar-actions">
-            <button className="icon-button" title={view === "news" ? "刷新热点" : "刷新数据"} aria-label={view === "news" ? "刷新热点" : "刷新数据"} disabled={view === "news" && newsLoading} onClick={() => void (view === "news" ? loadNews(true) : reload())}><RefreshCw size={16} /></button>
+            <button className="icon-button" title={view === "news" ? "刷新热点" : "刷新数据"} aria-label={view === "news" ? "刷新热点" : "刷新数据"} disabled={view === "news" && newsLoading} onClick={() => { if (view === "github") setGithubRefresh((current) => current + 1); else void (view === "news" ? loadNews(true) : reload()); }}><RefreshCw size={16} /></button>
           </div>
         </header>
 
@@ -349,6 +331,7 @@ function App() {
 
         {view === "home" && <HomePage counts={counts} questions={questions} documents={documents} onNavigate={setView} onOpenQuestion={(question) => { setSelectedQuestionId(question.id); setView("questions"); }} />}
         {view === "news" && <NewsPage data={news} loading={newsLoading} error={newsError} selected={selectedNews} onSelect={(item) => setSelectedNewsId(item?.id ?? null)} onRefresh={() => void loadNews(true)} />}
+        {view === "github" && <GithubProjects category={githubCategory} selectedId={selectedGithubId} refreshKey={githubRefresh} onNavigate={(category, id) => { setGithubCategory(category); setSelectedGithubId(id); }} />}
         {view === "questions" && (
           <QuestionsPage
             questions={questions}
@@ -567,7 +550,7 @@ function QuestionsPage({ questions, modules, tags, selected, restoring = false, 
       <div className="list-panel">{filtered.length === 0 ? <EmptyState icon={<Search size={19} />} title="没有匹配的面试题" /> : filtered.map((question) => (
         <div className="question-card" key={question.id}>
           <button type="button" className="question-card-main question-open-button" onClick={() => onSelect(question)} aria-label={`查看面试题：${question.question}`}>
-            <span className="question-meta"><span className={`difficulty ${question.difficulty.toLowerCase()}`}>{difficultyLabel(question.difficulty)}</span><span className={`mastery ${question.masteryStatus.toLowerCase()}`}>{masteryLabel(question.masteryStatus)}</span><span>{question.moduleName ?? "未分类"}</span></span>
+            <span className="question-meta"><span className={`difficulty ${question.difficulty.toLowerCase()}`}>{difficultyLabel(question.difficulty)}</span><span className={`mastery ${question.masteryStatus.toLowerCase()}`}>{masteryLabel(question.masteryStatus)}</span><span>{question.moduleName ?? "未分类"}</span><span>{questionSourceLabel(question.sourceType)}</span></span>
             <span className="question-title">{question.question}</span>
             <FollowUpTitles markdown={question.followUpQuestions} />
             {question.tags.length > 0 && <span className="tag-list">{question.tags.map((tag) => <span className="tag-chip" key={tag.id}>#{tag.name}</span>)}</span>}
@@ -596,7 +579,7 @@ function QuestionDetail({ question, onBack, onEdit, onDelete, onSaveFollowUps }:
     <section className="page-section question-detail">
       <button className="back-button" disabled={followUpSaving} onClick={() => { if (!followUpEditing || window.confirm("追问尚未保存，确认放弃修改？")) onBack(); }}><ArrowLeft size={16} />返回 AI 面经</button>
       <div className="detail-header">
-        <div><p className="eyebrow">QUESTION DETAIL</p><h2>面试题详情</h2><p>{question.moduleName ?? "未分类"} · 更新于 {formatDate(question.updatedAt)}</p></div>
+        <div><p className="eyebrow">QUESTION DETAIL</p><h2>面试题详情</h2><p>{question.moduleName ?? "未分类"} · {questionSourceLabel(question.sourceType)} · 更新于 {formatDate(question.updatedAt)}</p></div>
         <div className="row-actions"><button className="secondary-button" disabled={followUpSaving || followUpEditing} onClick={() => onEdit(question)}><Pencil size={15} />编辑</button><button className="icon-button danger" disabled={followUpSaving || followUpEditing} title="删除面试题" onClick={() => void onDelete(question.id)}><Trash2 size={15} /></button></div>
       </div>
       <div className="document-meta">
@@ -805,6 +788,7 @@ function GeneratedQuestionsModal({ document, questions, onClose, onSaved }: {
             moduleId: document.moduleId ?? null,
             difficulty: question.difficulty,
             masteryStatus: "NOT_STARTED",
+            sourceType: "DOCUMENT",
             tagIds: document.tags.map((tag) => tag.id),
           }),
         });
@@ -866,7 +850,7 @@ function QuestionModal({ value, modules, tags, onCreateModule, onCreateTag, onCl
     event.preventDefault();
     if (followUpEditing) { setError("请先添加、保存或取消当前追问"); return; }
     setSaving(true); setError("");
-    try { const body = { question, answer, detailedAnswer, followUpQuestions, moduleId: moduleId || null, difficulty, masteryStatus, tagIds }; await api(editing ? `/interview-questions/${value.id}` : "/interview-questions", { method: editing ? "PATCH" : "POST", body: JSON.stringify(body) }); await onSaved(); } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "保存面试题失败"); } finally { setSaving(false); }
+    try { const body = { question, answer, detailedAnswer, followUpQuestions, moduleId: moduleId || null, difficulty, masteryStatus, tagIds, sourceType: editing ? undefined : "MANUAL" }; await api(editing ? `/interview-questions/${value.id}` : "/interview-questions", { method: editing ? "PATCH" : "POST", body: JSON.stringify(body) }); await onSaved(); } catch (requestError) { setError(requestError instanceof Error ? requestError.message : "保存面试题失败"); } finally { setSaving(false); }
   };
   return <Modal title={editing ? "编辑面试题" : "新建面试题"} onClose={onClose}>
     <form className="modal-form" onSubmit={(event) => void save(event)}>
@@ -1084,6 +1068,8 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
 
 /** 将后端难度枚举转换为中文显示文本。 */
 function difficultyLabel(value: string) { return ({ EASY: "简单", MEDIUM: "中等", HARD: "困难" }[value] ?? value); }
+
+function questionSourceLabel(value: Question["sourceType"]) { return value === "DOCUMENT" ? "资料库生成" : "手动增加"; }
 
 /** 将后端掌握状态枚举转换为中文显示文本。 */
 function masteryLabel(value: string) { return ({ NOT_STARTED: "未开始", LEARNING: "学习中", MASTERED: "已掌握" }[value] ?? value); }

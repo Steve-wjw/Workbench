@@ -8,7 +8,7 @@ from app.routes.internal import router as internal_router
 
 app = FastAPI(
     title="Personal AI Workbench RAG Service",
-    version="0.1.0",
+    version="1.0.0",
 )
 app.include_router(internal_router)
 

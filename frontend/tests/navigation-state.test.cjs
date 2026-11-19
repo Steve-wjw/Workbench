@@ -23,7 +23,7 @@ function storage() {
   return { getItem: (key) => values.get(key) ?? null, setItem: (key, value) => values.set(key, value) };
 }
 const plain = (value) => JSON.parse(JSON.stringify(value));
-const home = { view: "home", selectedQuestionId: null, selectedDocumentId: null, selectedNewsId: null };
+const home = { view: "home", selectedQuestionId: null, selectedDocumentId: null, selectedNewsId: null, githubCategory: "PERSONAL_DEMO", selectedGithubId: null };
 
 test("first visit and server rendering safely default to home", () => {
   assert.deepEqual(plain(load("navigationState.ts").readNavigationState()), home);
@@ -31,7 +31,7 @@ test("first visit and server rendering safely default to home", () => {
 });
 test("reload remembers every module within the same browser tab", () => {
   const sessionStorage = storage();
-  for (const view of ["home", "news", "questions", "documents", "tags", "modules"]) {
+  for (const view of ["home", "news", "questions", "documents", "github", "tags", "modules"]) {
     load("navigationState.ts", { window: { sessionStorage } }).saveNavigationState({ ...home, view });
     assert.equal(load("navigationState.ts", { window: { sessionStorage } }).readNavigationState().view, view);
   }
@@ -102,12 +102,25 @@ test("fresh App mounts render the saved module instead of the homepage", () => {
   const sessionStorage = storage();
   const navigation = load("navigationState.ts", { window: { sessionStorage } });
   const { default: App } = load("App.tsx", { window: { sessionStorage } });
-  for (const [view, title] of [["questions", "AI 面经"], ["documents", "资料库"], ["news", "AI 热点"], ["tags", "标签管理"], ["modules", "模块管理"]]) {
+  for (const [view, title] of [["questions", "AI 面经"], ["documents", "资料库"], ["github", "GitHub"], ["news", "AI 热点"], ["tags", "标签管理"], ["modules", "模块管理"]]) {
     navigation.saveNavigationState({ ...home, view });
     const html = renderToStaticMarkup(React.createElement(App));
     assert.ok(html.includes(`<h1>${title}</h1>`));
     assert.doesNotMatch(html, /<h1>首页<\/h1>/);
   }
+});
+test("GitHub restores its category and BIGINT detail ID without retaining another module's detail", () => {
+  const sessionStorage = storage();
+  const navigation = load("navigationState.ts", { window: { sessionStorage } });
+  navigation.saveNavigationState({ ...home, view: "github", githubCategory: "LEARNING", selectedGithubId: "9007199254740993", selectedQuestionId: "42" });
+  assert.deepEqual(plain(navigation.readNavigationState()), { ...home, view: "github", githubCategory: "LEARNING", selectedGithubId: "9007199254740993" });
+  for (const id of ["0", "01", "-1", "9223372036854775808", "old-uuid"]) {
+    navigation.saveNavigationState({ ...home, view: "github", selectedGithubId: id });
+    assert.equal(navigation.readNavigationState().selectedGithubId, null);
+  }
+  navigation.saveNavigationState({ ...home, view: "documents", selectedGithubId: "42", githubCategory: "LEARNING" });
+  assert.equal(navigation.readNavigationState().selectedGithubId, null);
+  assert.equal(navigation.readNavigationState().githubCategory, "LEARNING");
 });
 test("restoring detail pages show a loading state rather than flashing an empty list", () => {
   const { QuestionsPage, DocumentsPage } = load("App.tsx", {}, "export { QuestionsPage, DocumentsPage };");

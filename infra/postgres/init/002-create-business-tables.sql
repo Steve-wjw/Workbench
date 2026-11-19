@@ -73,10 +73,12 @@ CREATE TABLE IF NOT EXISTS core.interview_questions (
     follow_up_questions TEXT,
     difficulty VARCHAR(32) NOT NULL DEFAULT 'MEDIUM',
     mastery_status VARCHAR(32) NOT NULL DEFAULT 'NOT_STARTED',
+    source_type VARCHAR(32) NOT NULL DEFAULT 'MANUAL',
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT questions_difficulty_check CHECK (difficulty IN ('EASY', 'MEDIUM', 'HARD')),
-    CONSTRAINT questions_mastery_check CHECK (mastery_status IN ('NOT_STARTED', 'LEARNING', 'MASTERED'))
+    CONSTRAINT questions_mastery_check CHECK (mastery_status IN ('NOT_STARTED', 'LEARNING', 'MASTERED')),
+    CONSTRAINT questions_source_type_check CHECK (source_type IN ('MANUAL', 'DOCUMENT'))
 );
 
 CREATE INDEX IF NOT EXISTS questions_module_idx ON core.interview_questions (module_id);
@@ -134,6 +136,37 @@ WHERE d.status = 'PENDING_INDEX'
       WHERE j.resource_id = d.id AND j.job_type = 'INDEX_DOCUMENT'
         AND j.status IN ('PENDING', 'RUNNING', 'RETRY_WAITING')
   );
+
+CREATE TABLE IF NOT EXISTS core.github_projects (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    category VARCHAR(32) NOT NULL,
+    full_name VARCHAR(240) NOT NULL,
+    repository_url VARCHAR(500) NOT NULL,
+    github_repo_id BIGINT,
+    description TEXT,
+    language VARCHAR(120),
+    stars BIGINT NOT NULL DEFAULT 0,
+    forks BIGINT NOT NULL DEFAULT 0,
+    topics TEXT[] NOT NULL DEFAULT '{}',
+    archived BOOLEAN NOT NULL DEFAULT FALSE,
+    pushed_at TIMESTAMPTZ,
+    notes TEXT NOT NULL DEFAULT '',
+    sync_status VARCHAR(32) NOT NULL DEFAULT 'PENDING',
+    sync_error TEXT,
+    etag TEXT,
+    last_synced_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT github_projects_category_check CHECK (category IN ('PERSONAL_DEMO', 'LEARNING')),
+    CONSTRAINT github_projects_sync_status_check CHECK (sync_status IN ('PENDING', 'SUCCESS', 'FAILED')),
+    CONSTRAINT github_projects_counts_check CHECK (stars >= 0 AND forks >= 0)
+);
+
+CREATE UNIQUE INDEX IF NOT EXISTS github_projects_category_name_key
+    ON core.github_projects (category, lower(full_name));
+CREATE UNIQUE INDEX IF NOT EXISTS github_projects_category_remote_key
+    ON core.github_projects (category, github_repo_id) WHERE github_repo_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS github_projects_category_id_idx ON core.github_projects (category, id DESC);
 
 CREATE TABLE IF NOT EXISTS rag.document_chunks (
     id UUID PRIMARY KEY,

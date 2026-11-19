@@ -7,6 +7,7 @@ import java.util.UUID;
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import com.fasterxml.jackson.databind.ser.std.ToStringSerializer;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 
 import com.aiworkbench.tag.TagModels;
 
@@ -31,6 +32,7 @@ public final class QuestionModels {
      * @param followUpQuestions 追问内容，支持结构化 JSON 并兼容旧 Markdown
      * @param difficulty 难度
      * @param masteryStatus 掌握状态
+     * @param sourceType 创建来源：MANUAL 手动增加，DOCUMENT 资料库生成
      * @param tags 关联标签
      * @param createdAt 创建时间
      * @param updatedAt 最后更新时间
@@ -54,6 +56,8 @@ public final class QuestionModels {
             String difficulty,
             /** 掌握状态。 */
             String masteryStatus,
+            /** 创建来源，编辑内容时保持不变。 */
+            String sourceType,
             /** 关联标签。 */
             List<TagModels.TagResponse> tags,
             /** 创建时间。 */
@@ -73,6 +77,7 @@ public final class QuestionModels {
      * @param difficulty 难度
      * @param masteryStatus 掌握状态
      * @param tagIds 关联标签 ID
+     * @param sourceType 创建来源；不传时默认为 MANUAL
      */
     public record CreateQuestionRequest(
             /** 所属模块 ID。 */
@@ -90,7 +95,9 @@ public final class QuestionModels {
             /** 掌握状态。 */
             String masteryStatus,
             /** 关联标签 ID。 */
-            List<UUID> tagIds) {
+            List<UUID> tagIds,
+            /** 不传时按手动增加处理。 */
+            @Pattern(regexp = "MANUAL|DOCUMENT") String sourceType) {
     }
 
     /**

@@ -27,7 +27,7 @@ const titles = (markdown) => Array.from(extractFollowUpTitles(markdown));
 const markdown = "## 为什么选择 RAG？\n追问答案不应出现在列表\n### 答案细节\n解释\n## 如何评估效果？\n补充内容";
 const question = {
   id: "1", question: "什么是 RAG？", answer: "主问题答案不应出现在列表",
-  followUpQuestions: markdown, difficulty: "MEDIUM", masteryStatus: "LEARNING",
+  followUpQuestions: markdown, difficulty: "MEDIUM", masteryStatus: "LEARNING", sourceType: "MANUAL",
   tags: [], updatedAt: "2026-11-04T08:00:00Z",
 };
 const noop = () => {};
@@ -106,6 +106,15 @@ test("homepage question rows also show child titles without answers", () => {
   const html = render(QuestionRow, { question, onSelect: noop });
   assert.match(html, /如何评估效果？/);
   assert.doesNotMatch(html, /追问答案不应出现在列表/);
+});
+test("question list and detail display the source using the existing metadata layout", () => {
+  for (const [sourceType, label] of [["MANUAL", "手动增加"], ["DOCUMENT", "资料库生成"]]) {
+    const item = { ...question, sourceType };
+    const list = render(QuestionsPage, { questions: [item], modules: [], tags: [], selected: null, onSelect: noop, onNew: noop, onEdit: noop, onDelete: noop, onSaveFollowUps: noop });
+    const detail = render(QuestionDetail, { question: item, onBack: noop, onEdit: noop, onDelete: noop, onSaveFollowUps: noop });
+    assert.ok(list.includes(label));
+    assert.ok(detail.includes(label));
+  }
 });
 test("detail shows a plus button and rendered follow-ups, never a persistent textarea", () => {
   const props = { question, onBack: noop, onEdit: noop, onDelete: noop, onSaveFollowUps: noop };

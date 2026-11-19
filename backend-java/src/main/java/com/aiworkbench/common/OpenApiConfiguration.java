@@ -29,8 +29,8 @@ public class OpenApiConfiguration {
         return new OpenAPI()
                 .info(new Info()
                         .title("Personal AI Workbench API")
-                        .version("v1")
-                        .description("本地 AI 面经与资料工作台 API。所有数据仅保存在当前本机 PostgreSQL 和工作区。"))
+                        .version("1.0.0")
+                        .description("V1 本地个人工作台 API：资料、面经、分类、AI 热点及 GitHub 项目。业务数据保存在本机；生成面经和外部内容同步会访问对应服务。"))
                 .addServersItem(new Server().url("http://localhost:8080").description("本地 Java API"))
                 .components(new Components().addParameters(
                         "RequestId",

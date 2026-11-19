@@ -1,0 +1,49 @@
+.github-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--line); }
+.github-category-tabs { margin: 0; border: 0; flex-shrink: 0; }
+.github-category-tabs button { min-width: 100px; height: 46px; justify-content: center; }
+.github-count { color: var(--muted); font-size: 11px; min-width: 18px; text-align: center; }
+.github-toolbar .search-field { width: 300px; max-width: 100%; margin-bottom: 10px; }
+.github-project-row { display: flex; align-items: center; gap: 16px; padding: 22px 0; border-bottom: 1px solid var(--line); }
+.github-project-row:first-child { padding-top: 10px; }
+.github-project-main { display: flex; align-items: flex-start; gap: 14px; flex: 1; min-width: 0; border: 0; padding: 0; background: transparent; text-align: left; }
+.github-repo-icon { width: 36px; height: 36px; background: #f1f5f3; color: #536860; border-radius: 6px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.github-project-copy { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.github-project-copy > strong { color: #223b38; font-size: 14px; overflow-wrap: anywhere; line-height: 1.5; }
+.github-project-main:hover .github-project-copy > strong { color: var(--teal); }
+.github-description { color: #697775; font-size: 13px; line-height: 1.65; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; overflow-wrap: anywhere; }
+.github-metadata { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-size: 11px; color: var(--muted); }
+.github-metadata > span { display: inline-flex; align-items: center; gap: 5px; line-height: 1.6; }
+.github-metadata .github-status { color: #667374; }
+.github-metadata .github-status.warning { color: #9b6b23; }
+.github-row-actions { flex-shrink: 0; }
+.github-row-actions a, .github-detail-header a { text-decoration: none; }
+.github-empty { padding: 30px 0; }
+.github-pagination { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 22px; color: var(--muted); font-size: 12px; }
+.github-detail-header { gap: 20px; }
+.github-detail-header h2 { font-size: 22px; line-height: 1.5; overflow-wrap: anywhere; }
+.github-detail-header .row-actions { flex-shrink: 0; }
+.github-overview { border-bottom: 1px solid var(--line); padding: 0 0 25px; margin-bottom: 24px; }
+.github-overview > p { line-height: 1.9; color: #53635f; font-size: 14px; margin: 0 0 16px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.github-overview .tag-list { margin-top: 16px; }
+.github-address { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; color: var(--teal); font-size: 12px; margin-top: 18px; overflow-wrap: anywhere; max-width: 100%; }
+.github-notes-heading { margin-bottom: 16px; }
+.github-notes { min-height: 130px; }
+.github-notice { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #377464; margin: 0 0 18px; }
+.github-sync-warning { display: flex; align-items: flex-start; gap: 7px; font-size: 12px; color: #916c2d; line-height: 1.8; overflow-wrap: anywhere; }
+.github-sync-warning svg { flex-shrink: 0; margin-top: 3px; }
+.github-form-fields { min-width: 0; padding: 0; margin: 0; border: 0; display: grid; gap: 18px; }
+.github-preview-button { justify-self: start; }
+.github-preview-result { border-left: 2px solid #c7d8d0; padding: 4px 0 4px 14px; font-size: 12px; overflow-wrap: anywhere; }
+.github-preview-result p { line-height: 1.8; color: #697775; }
+.github-preview-result .github-sync-warning { margin: 0; color: #916c2d; }
+.github-modal input[readonly] { color: #74817c; background: #f6f8f7; }
+@media (max-width: 620px) {
+  .github-toolbar { flex-direction: column; align-items: stretch; gap: 12px; }
+  .github-toolbar .search-field { width: 100%; }
+  .github-project-row { align-items: stretch; flex-direction: column; gap: 10px; }
+  .github-row-actions { align-self: flex-end; }
+  .github-category-tabs { align-self: flex-start; }
+  .github-pagination { align-items: flex-start; flex-direction: column; }
+  .github-detail-header h2 { font-size: 19px; }
+  .github-detail-header .row-actions { flex-wrap: wrap; }
+}

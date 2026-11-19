@@ -8,7 +8,8 @@ import { fileURLToPath } from "node:url";
 
 // Only connects to the isolated cluster created here, never the application's database.
 const root = fileURLToPath(new URL("../../", import.meta.url));
-const temp = mkdtempSync(path.join(tmpdir(), "workbench-question-identity-"));
+// Keep the Unix socket path below macOS's 103-byte limit.
+const temp = mkdtempSync(path.join(tmpdir(), "wb-qid-"));
 const data = path.join(temp, "data");
 const socket = path.join(temp, "socket");
 mkdirSync(socket);
@@ -31,9 +32,10 @@ function sql(source, allowFailure = false) {
 
 const scalar = (source) => sql(source).stdout.trim();
 const rows = (source) => JSON.parse(scalar(`SELECT COALESCE(json_agg(row_to_json(result)), '[]'::json) FROM (${source}) result;`));
-const migration = readFileSync(path.join(root, "docs/V1.1/QUESTION-ID-IDENTITY-MIGRATION.sql"), "utf8");
-const referencesCheck = readFileSync(path.join(root, "docs/V1.1/QUESTION-ID-REFERENCES-CHECK.sql"), "utf8");
-const batchImport = readFileSync(path.join(root, "docs/V1.1/AGENT-INTERVIEW-IMPORT.sql"), "utf8");
+const migration = readFileSync(path.join(root, "docs/SQL/面试题自增主键迁移.sql"), "utf8");
+const sourceMigration = readFileSync(path.join(root, "docs/SQL/面试题创建来源迁移.sql"), "utf8");
+const referencesCheck = readFileSync(path.join(root, "docs/SQL/检查面试题外键引用.sql"), "utf8");
+const batchImport = readFileSync(path.join(root, "docs/SQL/导入Agent面试题第一批.sql"), "utf8");
 const allSchema = readFileSync(path.join(root, "infra/postgres/init/002-create-business-tables.sql"), "utf8");
 const schema = allSchema.slice(0, allSchema.indexOf("CREATE TABLE IF NOT EXISTS rag.document_chunks"));
 const legacySchema = schema
@@ -315,6 +317,7 @@ test("fresh schema and batch import use identity IDs in source order and skip re
   sql(batchImport);
   assertIdentity();
   assert.equal(scalar("SELECT count(*) FROM core.interview_questions WHERE difficulty = 'EASY' AND mastery_status = 'NOT_STARTED'"), "24");
+  assert.equal(scalar("SELECT count(*) FROM core.interview_questions WHERE source_type = 'MANUAL'"), "24");
   assert.equal(scalar("SELECT sum(jsonb_array_length(follow_up_questions::jsonb->'items')) FROM core.interview_questions"), "79");
   assert.equal(scalar("SELECT count(*) FROM core.interview_question_tags"), "48");
   const payload = JSON.parse(batchImport.match(/\$interview_payload\$\n([\s\S]*?)\n\$interview_payload\$::JSONB/)[1]);
@@ -325,4 +328,29 @@ test("fresh schema and batch import use identity IDs in source order and skip re
   assert.equal(scalar("SELECT count(*) FROM core.interview_questions"), "24");
   assert.equal(scalar("SELECT answer FROM core.interview_questions WHERE id = 1"), "User edit");
   assert.equal(scalar("INSERT INTO core.interview_questions (question, answer) VALUES ('Next', 'A') RETURNING id"), "25");
+});
+
+test("source migration marks old questions manual and preserves generated sources on repeated runs", () => {
+  setup({ legacy: false });
+  sql(`ALTER TABLE core.interview_questions DROP COLUMN source_type;
+    INSERT INTO core.interview_questions (question, answer) VALUES ('Existing', 'Answer');`);
+  const before = snapshotQuestions();
+  sql(sourceMigration);
+  assert.deepEqual(snapshotQuestions(), before);
+  assert.equal(scalar("SELECT source_type FROM core.interview_questions WHERE question = 'Existing'"), "MANUAL");
+  sql(`INSERT INTO core.interview_questions (question, answer, source_type) VALUES ('Generated', 'Answer', 'DOCUMENT');`);
+  sql(sourceMigration);
+  assert.equal(scalar("SELECT source_type FROM core.interview_questions WHERE question = 'Generated'"), "DOCUMENT");
+  assert.equal(scalar("INSERT INTO core.interview_questions (question, answer) VALUES ('Manual', 'Answer') RETURNING source_type"), "MANUAL");
+  assert.notEqual(sql("INSERT INTO core.interview_questions (question, answer, source_type) VALUES ('Q', 'A', 'OTHER');", true).status, 0);
+  assert.notEqual(sql("INSERT INTO core.interview_questions (question, answer, source_type) VALUES ('Q', 'A', NULL);", true).status, 0);
+});
+
+test("fresh schema supports both sources and enforces manual default and source constraints", () => {
+  setup({ legacy: false });
+  sql(sourceMigration);
+  assert.equal(scalar("INSERT INTO core.interview_questions (question, answer) VALUES ('Q', 'A') RETURNING source_type"), "MANUAL");
+  assert.equal(scalar("INSERT INTO core.interview_questions (question, answer, source_type) VALUES ('Q', 'A', 'DOCUMENT') RETURNING source_type"), "DOCUMENT");
+  assert.notEqual(sql("UPDATE core.interview_questions SET source_type = 'OTHER';", true).status, 0);
+  assert.notEqual(sql("UPDATE core.interview_questions SET source_type = NULL;", true).status, 0);
 });

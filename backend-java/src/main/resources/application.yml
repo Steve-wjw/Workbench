@@ -23,6 +23,8 @@ management:
 workbench:
   data-dir: ${WORKBENCH_DATA_DIR:./data}
   python-rag-base-url: ${PYTHON_RAG_BASE_URL:http://localhost:8000}
+  github:
+    token: ${GITHUB_TOKEN:}
   llm:
     base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
     api-key: ${DEEPSEEK_API_KEY:}

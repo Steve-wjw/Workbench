@@ -1,29 +1,31 @@
-export type View = "home" | "news" | "questions" | "documents" | "tags" | "modules";
+export type View = "home" | "news" | "questions" | "documents" | "github" | "tags" | "modules";
 
 export type NavigationState = {
   view: View;
   selectedQuestionId: string | null;
   selectedDocumentId: string | null;
   selectedNewsId: string | null;
+  githubCategory: "PERSONAL_DEMO" | "LEARNING";
+  selectedGithubId: string | null;
 };
 
 export const NAVIGATION_STORAGE_KEY = "ai-workbench.navigation.v1";
 
-const views: View[] = ["home", "news", "questions", "documents", "tags", "modules"];
+const views: View[] = ["home", "news", "questions", "documents", "github", "tags", "modules"];
 
 function normalize(value: unknown): NavigationState {
   const state = value && typeof value === "object" ? value as Record<string, unknown> : {};
   const view = views.includes(state.view as View) ? state.view as View : "home";
   const id = (value: unknown) => typeof value === "string" && value.trim() && value.length <= 200 ? value : null;
-  const questionId = typeof state.selectedQuestionId === "string"
-    && /^[1-9]\d{0,18}$/.test(state.selectedQuestionId)
-    && BigInt(state.selectedQuestionId) <= 9223372036854775807n
-    ? state.selectedQuestionId : null;
+  const numericId = (value: unknown) => typeof value === "string"
+    && /^[1-9]\d{0,18}$/.test(value) && BigInt(value) <= 9223372036854775807n ? value : null;
   return {
     view,
-    selectedQuestionId: view === "questions" ? questionId : null,
+    selectedQuestionId: view === "questions" ? numericId(state.selectedQuestionId) : null,
     selectedDocumentId: view === "documents" ? id(state.selectedDocumentId) : null,
     selectedNewsId: view === "news" ? id(state.selectedNewsId) : null,
+    githubCategory: state.githubCategory === "LEARNING" ? "LEARNING" : "PERSONAL_DEMO",
+    selectedGithubId: view === "github" ? numericId(state.selectedGithubId) : null,
   };
 }
 

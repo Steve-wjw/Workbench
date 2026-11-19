@@ -38,8 +38,40 @@ class QuestionControllerTest {
     void followUpsRemainOptionalForExistingCreateClients() throws Exception {
         mvc.perform(post("/api/v1/interview-questions").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"question\":\"Question\",\"answer\":\"Answer\"}"))
-                .andExpect(status().isCreated());
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.sourceType").value("MANUAL"));
         assertNull(repository.followUps);
+    }
+
+    @Test
+    void creationAcceptsBothSourcesAndDefaultsNullToManual() throws Exception {
+        for (String source : List.of("\"MANUAL\"", "\"DOCUMENT\"", "null")) {
+            mvc.perform(post("/api/v1/interview-questions").contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"question\":\"Question\",\"answer\":\"Answer\",\"sourceType\":" + source + "}"))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.sourceType").value(source.equals("\"DOCUMENT\"") ? "DOCUMENT" : "MANUAL"));
+        }
+    }
+
+    @Test
+    void creationRejectsUnsupportedSources() throws Exception {
+        for (String source : List.of("AI", "document", "", " MANUAL ")) {
+            mvc.perform(post("/api/v1/interview-questions").contentType(MediaType.APPLICATION_JSON)
+                            .content(new ObjectMapper().writeValueAsString(Map.of(
+                                    "question", "Question", "answer", "Answer", "sourceType", source))))
+                    .andExpect(status().isBadRequest());
+        }
+        assertNull(repository.lastLookupId);
+    }
+
+    @Test
+    void editingAnswersAndFollowUpsDoesNotChangeDocumentSource() throws Exception {
+        repository.sourceType = "DOCUMENT";
+        mvc.perform(patch("/api/v1/interview-questions/{id}", repository.id)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"answer\":\"Edited answer\",\"followUpQuestions\":\"## Updated\"}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sourceType").value("DOCUMENT"));
     }
 
     @Test
@@ -90,6 +122,7 @@ class QuestionControllerTest {
         private Long lastLookupId;
         private Long deletedId;
         private String followUps = "## Existing";
+        private String sourceType = "MANUAL";
         private QuestionModels.UpdateQuestionRequest lastUpdate;
 
         RecordingRepository() {
@@ -101,12 +134,13 @@ class QuestionControllerTest {
             lastLookupId = questionId;
             return new QuestionModels.QuestionResponse(
                     id, null, null, "Question", "Answer", null, followUps,
-                    "MEDIUM", "LEARNING", List.of(), null, null);
+                    "MEDIUM", "LEARNING", sourceType, List.of(), null, null);
         }
 
         @Override
         public QuestionModels.QuestionResponse insert(QuestionModels.CreateQuestionRequest request) {
             followUps = request.followUpQuestions();
+            sourceType = request.sourceType() == null ? "MANUAL" : request.sourceType();
             return findById(id);
         }
 

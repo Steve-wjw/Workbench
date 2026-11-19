@@ -25,7 +25,7 @@ require_command npm
 
 PYTHON_BIN="$ROOT_DIR/backend-python/.venv/bin/python"
 if [[ ! -x "$PYTHON_BIN" ]]; then
-  echo "Python virtual environment not found. See docs/V1/PRD/README.md for setup." >&2
+  echo "Python virtual environment not found. See docs/V1/本地部署与配置说明.md for setup." >&2
   exit 1
 fi
 

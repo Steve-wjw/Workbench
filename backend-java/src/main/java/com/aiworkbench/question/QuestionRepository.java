@@ -76,7 +76,7 @@ public class QuestionRepository {
         List<QuestionModels.QuestionResponse> items = jdbc.query("""
                 SELECT q.id, q.module_id, m.name AS module_name, q.question,
                        q.answer, q.detailed_answer, q.follow_up_questions, q.difficulty,
-                       q.mastery_status, q.created_at, q.updated_at
+                       q.mastery_status, q.source_type, q.created_at, q.updated_at
                 FROM core.interview_questions q
                 LEFT JOIN core.modules m ON m.id = q.module_id
                 WHERE (:keyword = '' OR q.question ILIKE :likeKeyword OR q.answer ILIKE :likeKeyword
@@ -121,7 +121,7 @@ public class QuestionRepository {
         List<QuestionModels.QuestionResponse> results = jdbc.query("""
                 SELECT q.id, q.module_id, m.name AS module_name, q.question,
                        q.answer, q.detailed_answer, q.follow_up_questions, q.difficulty,
-                       q.mastery_status, q.created_at, q.updated_at
+                       q.mastery_status, q.source_type, q.created_at, q.updated_at
                 FROM core.interview_questions q
                 LEFT JOIN core.modules m ON m.id = q.module_id
                 WHERE q.id = :id
@@ -139,9 +139,9 @@ public class QuestionRepository {
             QuestionModels.CreateQuestionRequest request) {
         Long id = jdbc.queryForObject("""
                 INSERT INTO core.interview_questions
-                    (module_id, question, answer, detailed_answer, follow_up_questions, difficulty, mastery_status)
+                    (module_id, question, answer, detailed_answer, follow_up_questions, difficulty, mastery_status, source_type)
                 VALUES
-                    (:moduleId, :question, :answer, :detailedAnswer, :followUpQuestions, :difficulty, :masteryStatus)
+                    (:moduleId, :question, :answer, :detailedAnswer, :followUpQuestions, :difficulty, :masteryStatus, :sourceType)
                 RETURNING id
                 """, new MapSqlParameterSource()
                 .addValue("moduleId", request.moduleId())
@@ -150,7 +150,8 @@ public class QuestionRepository {
                 .addValue("detailedAnswer", blankToNull(request.detailedAnswer()))
                 .addValue("followUpQuestions", request.followUpQuestions())
                 .addValue("difficulty", defaultValue(request.difficulty(), "MEDIUM"))
-                .addValue("masteryStatus", defaultValue(request.masteryStatus(), "NOT_STARTED")), Long.class);
+                .addValue("masteryStatus", defaultValue(request.masteryStatus(), "NOT_STARTED"))
+                .addValue("sourceType", defaultValue(request.sourceType(), "MANUAL")), Long.class);
         replaceTags(id, request.tagIds());
         return findById(id);
     }
@@ -245,6 +246,7 @@ public class QuestionRepository {
                 question.followUpQuestions(),
                 question.difficulty(),
                 question.masteryStatus(),
+                question.sourceType(),
                 tagRepository.findByIds(ids),
                 question.createdAt(),
                 question.updatedAt());
@@ -274,6 +276,7 @@ public class QuestionRepository {
                 resultSet.getString("follow_up_questions"),
                 resultSet.getString("difficulty"),
                 resultSet.getString("mastery_status"),
+                resultSet.getString("source_type"),
                 List.<TagModels.TagResponse>of(),
                 resultSet.getObject("created_at", OffsetDateTime.class),
                 resultSet.getObject("updated_at", OffsetDateTime.class));

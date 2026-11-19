@@ -105,7 +105,7 @@ public class NewsService {
                         .queryParam("window", "7d").queryParam("by", "published").queryParam("limit", 100);
                 if (currentCursor != null) builder.queryParam("cursor", currentCursor);
                 return builder.build();
-            }).header("User-Agent", "AI-Workbench/1.1 (personal local reader)");
+            }).header("User-Agent", "AI-Workbench/1.0.0 (personal local reader)");
             if (page == 0 && snapshot != null && snapshot.etag() != null) {
                 request.header("If-None-Match", snapshot.etag());
             }

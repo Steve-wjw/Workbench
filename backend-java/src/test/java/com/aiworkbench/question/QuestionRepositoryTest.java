@@ -34,7 +34,7 @@ class QuestionRepositoryTest {
     void createPreservesMarkdownWhitespaceAndMapsItBackToResponse() {
         String markdown = "\n## Follow-up\n\n    indented code\n\n";
         var response = repository.insert(new QuestionModels.CreateQuestionRequest(
-                null, "Question", "Answer", null, markdown, null, null, null));
+                null, "Question", "Answer", null, markdown, null, null, null, null));
 
         assertEquals(markdown, jdbc.writtenFollowUps);
         assertEquals(markdown, response.followUpQuestions());
@@ -45,7 +45,7 @@ class QuestionRepositoryTest {
     void createUsesDatabaseGeneratedIdAndReusesItForTagRelations() {
         UUID tagId = UUID.randomUUID();
         var response = repository.insert(new QuestionModels.CreateQuestionRequest(
-                null, "Question", "Answer", null, null, null, null, List.of(tagId)));
+                null, "Question", "Answer", null, null, null, null, List.of(tagId), null));
 
         assertEquals(jdbc.id, response.id());
         assertTrue(jdbc.statements.getFirst().contains("RETURNING id"));
@@ -104,6 +104,39 @@ class QuestionRepositoryTest {
         assertEquals(2, jdbc.statements.stream().filter(sql -> sql.contains("q.follow_up_questions ILIKE :likeKeyword")).count());
     }
 
+    @Test
+    void omittedSourceDefaultsToManual() {
+        var response = repository.insert(new QuestionModels.CreateQuestionRequest(
+                null, "Question", "Answer", null, null, null, null, null, null));
+
+        assertEquals("MANUAL", jdbc.storedSourceType);
+        assertEquals("MANUAL", response.sourceType());
+        assertTrue(jdbc.statements.getFirst().contains(":sourceType"));
+    }
+
+    @Test
+    void documentSourceIsPersistedAndIncludedInDetailAndList() {
+        var response = repository.insert(new QuestionModels.CreateQuestionRequest(
+                null, "Question", "Answer", null, null, null, null, null, "DOCUMENT"));
+
+        assertEquals("DOCUMENT", jdbc.storedSourceType);
+        assertEquals("DOCUMENT", response.sourceType());
+        assertEquals("DOCUMENT", repository.findById(jdbc.id).sourceType());
+        assertEquals("DOCUMENT", repository.findPage(
+                null, null, null, null, null, PageRequest.of(1, 20)).items().getFirst().sourceType());
+        assertTrue(jdbc.statements.stream().filter(sql -> sql.contains("SELECT q.id"))
+                .allMatch(sql -> sql.contains("q.source_type")));
+    }
+
+    @Test
+    void editingDocumentQuestionPreservesOriginalSource() {
+        jdbc.storedSourceType = "DOCUMENT";
+        var response = repository.update(jdbc.id, patch("Updated follow-up"));
+
+        assertEquals("DOCUMENT", response.sourceType());
+        assertFalse(jdbc.statements.getFirst().contains("source_type"));
+    }
+
     private QuestionModels.UpdateQuestionRequest patch(String followUps) {
         return new QuestionModels.UpdateQuestionRequest(null, null, null, null, followUps, null, null, null);
     }
@@ -115,6 +148,7 @@ class QuestionRepositoryTest {
         private final List<UUID> tagIds = new ArrayList<>();
         private String writtenFollowUps;
         private String storedFollowUps;
+        private String storedSourceType = "MANUAL";
 
         RecordingJdbc() {
             super(new JdbcTemplate());
@@ -126,6 +160,9 @@ class QuestionRepositoryTest {
             if (params.hasValue("followUpQuestions")) {
                 writtenFollowUps = (String) params.getValue("followUpQuestions");
                 if (writtenFollowUps != null) storedFollowUps = writtenFollowUps;
+            }
+            if (params.hasValue("sourceType")) {
+                storedSourceType = (String) params.getValue("sourceType");
             }
             return 1;
         }
@@ -148,6 +185,7 @@ class QuestionRepositoryTest {
                         case "question" -> "Question";
                         case "answer" -> "Answer";
                         case "follow_up_questions" -> storedFollowUps;
+                        case "source_type" -> storedSourceType;
                         default -> null;
                     });
             try {
@@ -164,6 +202,7 @@ class QuestionRepositoryTest {
                 assertFalse(params.hasValue("id"));
                 writtenFollowUps = (String) params.getValue("followUpQuestions");
                 storedFollowUps = writtenFollowUps;
+                storedSourceType = (String) params.getValue("sourceType");
                 return type.cast(id);
             }
             return type.cast(1L);
